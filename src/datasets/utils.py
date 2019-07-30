@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 from tensorflow.train import Example, Features, Feature
 import numpy as np
@@ -15,15 +15,17 @@ from src.logger.logger import get_logger
 
 ImageShape = Tuple[int, int, int]
 FeatureDict = Dict[str, Feature]
-
+OptionalBBoxes = Optional[List[np.ndarray]]
 logger = get_logger(__file__)
 
 
 def convert_to_example(image: np.ndarray,
                        file_name: str,
-                       oriented_bboxes: List[np.ndarray]) -> Example:
+                       oriented_bboxes: List[np.ndarray],
+                       voc_bboxes: OptionalBBoxes = None) -> Example:
     _check_example_health(file_name, oriented_bboxes)
-    voc_bboxes = _convert_oriented_bboxes_to_voc(oriented_bboxes)
+    if voc_bboxes is None:
+        voc_bboxes = _convert_oriented_bboxes_to_voc(oriented_bboxes)
     oriented_bboxes = np.asarray(oriented_bboxes)
     feature = _construct_feature_dict(
         image=image,
@@ -119,5 +121,4 @@ def _column_to_list(array: np.ndarray, column_idx: int) -> List[np.ndarray]:
     if len(array) > 0:
         return list(array[:, column_idx])
     return []
-
 
