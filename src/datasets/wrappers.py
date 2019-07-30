@@ -13,22 +13,30 @@
 # limitations under the License.
 # ==============================================================================
 
-from typing import Union, List
+from typing import Any
 
-import tensorflow as tf
+from tensorflow.train import Feature, FloatList, Int64List, BytesList
 
 
-def int64_feature(value: Union[int, List[int]]) -> tf.train.Feature:
+def int64_feature(value: Any) -> Feature:
     """Wrapper for inserting int64 features into Example proto.
     """
     if not isinstance(value, list):
         value = [value]
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
+    return Feature(int64_list=Int64List(value=value))
 
 
-def float_feature(value: Union[float, List[float]]) -> tf.train.Feature:
+def float_feature(value: Any) -> Feature:
     """Wrapper for inserting float features into Example proto.
     """
     if not isinstance(value, list):
         value = [value]
-    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+    return Feature(float_list=FloatList(value=value))
+
+
+def bytes_feature(value: Any) -> Feature:
+    """Wrapper for inserting bytes features into Example proto.
+    """
+    if not isinstance(value, list):
+        value = [value]
+    return Feature(bytes_list=BytesList(value=value))
