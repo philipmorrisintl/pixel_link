@@ -1,9 +1,5 @@
 # *.tfrecords files config
 IMG_SHAPE_KEY = 'image/shape'
-VOC_BBOX_X_MIN_KEY = 'image/object/bbox/xmin'
-VOC_BBOX_Y_MIN_KEY = 'image/object/bbox/ymin'
-VOC_BBOX_X_MAX_KEY = 'image/object/bbox/xmax'
-VOC_BBOX_Y_MAX_KEY = 'image/object/bbox/ymax'
 ORIENTED_BBOX_X1_KEY = 'image/object/bbox/x1'
 ORIENTED_BBOX_Y1_KEY = 'image/object/bbox/y1'
 ORIENTED_BBOX_X2_KEY = 'image/object/bbox/x2'
