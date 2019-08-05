@@ -1,4 +1,5 @@
 # *.tfrecords files config
+EXAMPLE_ID_KEY = 'image/id'
 IMG_SHAPE_KEY = 'image/shape'
 ORIENTED_BBOX_X1_KEY = 'image/object/bbox/x1'
 ORIENTED_BBOX_Y1_KEY = 'image/object/bbox/y1'
@@ -8,5 +9,4 @@ ORIENTED_BBOX_X3_KEY = 'image/object/bbox/x3'
 ORIENTED_BBOX_Y3_KEY = 'image/object/bbox/y3'
 ORIENTED_BBOX_X4_KEY = 'image/object/bbox/x4'
 ORIENTED_BBOX_Y4_KEY = 'image/object/bbox/y4'
-FILE_NAME_KEY = 'image/filename'
 RAW_FILE_KEY = 'image/encoded'

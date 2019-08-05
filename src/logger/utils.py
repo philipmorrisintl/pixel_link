@@ -1,6 +1,8 @@
 import os
 from configparser import ConfigParser
 
+from src.common.utils import create_dir
+
 CONFIG_FILE_PATH = os.path.join(
         os.path.abspath(os.path.dirname(__file__)),
         'logging.ini'
@@ -16,6 +18,8 @@ TARGET_LOG_PATH = os.path.join(
 
 
 def adjust_config() -> ConfigParser:
+    config_dir_path = os.path.dirname(TARGET_LOG_PATH)
+    create_dir(config_dir_path)
     config = _load_config()
     return _set_up_logger_target_file(config)
 
