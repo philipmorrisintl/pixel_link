@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 from src.common.utils import read_csv_file, extract_file_name, \
     dump_content_to_csv
+from src.datasets.conversion_tools.errors import DataConversionError
 from src.datasets.conversion_tools.utils import OrientedBoundingBox, \
     ImageSizeFormat
 from src.datasets.utils import convert_to_example
@@ -21,10 +22,6 @@ logger = get_logger(__file__)
 INVALID_FORMAT_ERROR_MSG = 'Some entries contain not sufficient number ' \
                            'of elements. Valid format of entry: ' \
                            'image_path, gt_path'
-
-
-class DataConversionError(Exception):
-    pass
 
 
 class TrainingExample:

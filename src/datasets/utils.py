@@ -4,11 +4,14 @@ from typing import List, Tuple, Dict, Optional, Union
 import tensorflow as tf
 from tensorflow.train import Example, Features, Feature
 import numpy as np
+import cv2 as cv
 
-from src.datasets.config import IMG_SHAPE_KEY, \
+from src.datasets.config import IMG_HEIGHT_KEY, IMG_WIDTH_KEY, \
     ORIENTED_BBOX_X1_KEY, ORIENTED_BBOX_Y1_KEY, ORIENTED_BBOX_X2_KEY, \
     ORIENTED_BBOX_Y2_KEY, ORIENTED_BBOX_X3_KEY, ORIENTED_BBOX_Y3_KEY, \
-    ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY, RAW_FILE_KEY, EXAMPLE_ID_KEY
+    ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY, RAW_FILE_KEY, EXAMPLE_ID_KEY, \
+    BBOXES_NUMBER_KEY
+from src.datasets.conversion_tools.utils import ImageSizeFormat
 from src.datasets.wrappers import int64_feature, float_feature, bytes_feature
 from src.logger.logger import get_logger
 
@@ -31,12 +34,19 @@ def convert_to_example(example_id: int,
                        image: np.ndarray,
                        file_name: str,
                        oriented_bboxes: List[np.ndarray],
-                       max_bounding_boxes: int) -> Example:
+                       max_bounding_boxes: int,
+                       target_size: ImageSizeFormat.ImageSize,
+                       size_format: ImageSizeFormat = ImageSizeFormat.HEIGHT_WIDTH) -> Example:
     oriented_bboxes = _check_example_health(file_name, oriented_bboxes)
     oriented_bboxes = _prepare_bboxes_array(
         oriented_bboxes=oriented_bboxes,
         max_bounding_boxes=max_bounding_boxes,
         file_name=file_name
+    )
+    image = _adjust_image(
+        image=image,
+        target_size=target_size,
+        size_format=size_format
     )
     feature = _construct_feature_dict(
         example_id=example_id,
@@ -45,6 +55,17 @@ def convert_to_example(example_id: int,
     )
     example = Example(features=Features(feature=feature))
     return example
+
+
+def _adjust_image(image: np.ndarray,
+                  target_size: ImageSizeFormat.ImageSize,
+                  size_format: ImageSizeFormat) -> np.ndarray:
+    target_size = ImageSizeFormat.convert_to_width_height(
+        image_size=target_size,
+        source_format=size_format
+    )
+    image = cv.resize(image, target_size)
+    return image.astype(dtype=np.float32)
 
 
 def _prepare_bboxes_array(oriented_bboxes: List[np.ndarray],
@@ -86,7 +107,7 @@ def _trim_bounding_box(oriented_bounding_box: np.ndarray,
                            f'due to corner position outside image. '
                            f'Large number of such warnings may indicate '
                            f'an issue with dataset.')
-            return min(1.0, max(0.0, elem))
+        return min(1.0, max(0.0, elem))
 
     return np.vectorize(__trim_standardization)(oriented_bounding_box)
 
@@ -94,11 +115,14 @@ def _trim_bounding_box(oriented_bounding_box: np.ndarray,
 def _construct_feature_dict(example_id: int,
                             image: np.ndarray,
                             oriented_bboxes: np.ndarray):
-    image_shape = image.shape
+    image_height, image_width = image.shape[:2]
     feature = {
         EXAMPLE_ID_KEY: int64_feature([example_id]),
-        IMG_SHAPE_KEY: int64_feature(list(image_shape)),
-        RAW_FILE_KEY: bytes_feature(image.tostring())}
+        IMG_HEIGHT_KEY: int64_feature([image_height]),
+        IMG_WIDTH_KEY: int64_feature([image_width]),
+        RAW_FILE_KEY: bytes_feature(image.tostring()),
+        BBOXES_NUMBER_KEY: int64_feature([len(oriented_bboxes)])
+    }
     feature = _put_oriented_bboxes_into_feature(
         feature=feature,
         bboxes=oriented_bboxes
@@ -126,6 +150,7 @@ def _put_bboxes_into_feature(feature: FeatureDict,
                              bboxes: np.ndarray) -> FeatureDict:
     for coord_idx, feature_key in enumerate(target_feature_keys):
         bboxes_coord_column = _column_to_list(bboxes, coord_idx)
+        print(bboxes_coord_column)
         feature[feature_key] = float_feature(bboxes_coord_column)
     return feature
 
@@ -143,39 +168,43 @@ def parse_example(raw_data: bytes,
         raw_data,
         features=features_to_extract
     )
-    x = _decode_images(features)
+    x = _decode_image(features)
     y = _decode_gt(features)
     if decode_example_id is True:
-        example_id = _decode_example_id(features)
+        example_id = features[EXAMPLE_ID_KEY]
         return example_id, x, y
     return x, y
 
 
 def _get_features_to_extract(decode_example_id: bool) -> dict:
-    feature_names = [
-        RAW_FILE_KEY, IMG_SHAPE_KEY, ORIENTED_BBOX_X1_KEY, ORIENTED_BBOX_Y1_KEY,
+    coordinates_features_names = [
+        ORIENTED_BBOX_X1_KEY, ORIENTED_BBOX_Y1_KEY,
         ORIENTED_BBOX_X2_KEY, ORIENTED_BBOX_Y2_KEY, ORIENTED_BBOX_X3_KEY,
         ORIENTED_BBOX_Y3_KEY, ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY
     ]
+    int_features_names = [
+        IMG_WIDTH_KEY, IMG_HEIGHT_KEY, BBOXES_NUMBER_KEY
+    ]
     if decode_example_id:
-        feature_names.append(EXAMPLE_ID_KEY)
+        int_features_names.append(EXAMPLE_ID_KEY)
     features_to_extract = {}
-    for feature_name in feature_names:
-        features_to_extract[feature_name] = tf.FixedLenFeature([], tf.string)
+    for feature_name in coordinates_features_names:
+        features_to_extract[feature_name] = tf.VarLenFeature(tf.float32)
+    for feature_name in int_features_names:
+        features_to_extract[feature_name] = tf.FixedLenFeature([], tf.int64)
+    features_to_extract[RAW_FILE_KEY] = tf.FixedLenFeature([], tf.string)
     return features_to_extract
 
 
-def _decode_images(features: Dict[str, tf.Tensor]) -> tf.Tensor:
-    batch_size = features[RAW_FILE_KEY].shape[0]
-    image_shape = features[IMG_SHAPE_KEY][0]
-    height, width, channel = image_shape[0], image_shape[1], image_shape[2]
-    images = tf.decode_raw(features[RAW_FILE_KEY])
-    return tf.reshape(images, [batch_size, height, width, channel])
+def _decode_image(features: Dict[str, tf.Tensor]) -> tf.Tensor:
+    height, width = features[IMG_HEIGHT_KEY], features[IMG_WIDTH_KEY]
+    image = tf.decode_raw(features[RAW_FILE_KEY], tf.float32)
+    return tf.reshape(image, [height[0], width[0], 3])
 
 
 def _decode_gt(features: Dict[str, tf.Tensor]) -> DecodedGT:
-    decode_single_gt_feature = partial(
-        _decode_single_gt_feature,
+    decode_single_bbox_feature = partial(
+        _decode_single_bbox_feature,
         features=features
     )
     gt_feature_names = [
@@ -183,16 +212,16 @@ def _decode_gt(features: Dict[str, tf.Tensor]) -> DecodedGT:
         ORIENTED_BBOX_Y2_KEY, ORIENTED_BBOX_X3_KEY, ORIENTED_BBOX_Y3_KEY,
         ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY
     ]
-    features_decoded = list(map(decode_single_gt_feature, gt_feature_names))
+    features_decoded = list(map(decode_single_bbox_feature, gt_feature_names))
     return tuple(features_decoded)
 
 
-def _decode_single_gt_feature(feature_name: str,
-                              features: Dict[str, tf.Tensor]) -> tf.Tensor:
-    gt_feature = features[feature_name]
-    return tf.cast(gt_feature, tf.float32)
+def _decode_single_bbox_feature(feature_name: str,
+                                features: Dict[str, tf.Tensor]) -> tf.Tensor:
+    sparse_gt_feature = features[feature_name]
+    return tf.sparse_to_dense(
+        sparse_indices=sparse_gt_feature.indices,
+        output_shape=sparse_gt_feature.dense_shape,
+        sparse_values=sparse_gt_feature.values
+    )
 
-
-def _decode_example_id(features: Dict[str, tf.Tensor]) -> tf.Tensor:
-    id_feature = features[EXAMPLE_ID_KEY]
-    return tf.cast(id_feature, tf.int32)

@@ -5,7 +5,7 @@ from functools import reduce
 import argparse
 import numpy as np
 
-from src.datasets.conversion_tools.converters import DataConversionError
+from src.datasets.conversion_tools.errors import DataConversionError
 
 Number = Union[int, float]
 Point = Tuple[Number, Number]
