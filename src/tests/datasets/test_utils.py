@@ -11,7 +11,7 @@ import tensorflow as tf
 from tensorflow.python_io import TFRecordWriter
 
 from src.common.utils import create_dir
-from src.datasets.conversion_tools.utils import ImageSizeFormat
+from src.datasets.conversion_tools.utils import ImageSizeFormat, ImageSize
 from src.datasets.utils import convert_to_example, parse_example
 from src.tests.utils import get_test_data_root
 
@@ -150,7 +150,7 @@ class DataSetsUtilsTests(unittest.TestCase):
                         file_name: str,
                         oriented_bboxes: List[np.ndarray],
                         max_bounding_boxes: int,
-                        target_size: ImageSizeFormat.ImageSize,
+                        target_size: ImageSize,
                         size_format: ImageSizeFormat = ImageSizeFormat.HEIGHT_WIDTH) -> None:
         tfrecords_path = os.path.join(self.__test_data_root, 'test.tfrecords')
         with TFRecordWriter(tfrecords_path) as tfrecord_writer:

@@ -2,7 +2,6 @@
 EXAMPLE_ID_KEY = 'image/id'
 IMG_HEIGHT_KEY = 'image/shape/height'
 IMG_WIDTH_KEY = 'image/shape/width'
-BBOXES_NUMBER_KEY = 'image/object/bboxes'
 ORIENTED_BBOX_X1_KEY = 'image/object/bbox/x1'
 ORIENTED_BBOX_Y1_KEY = 'image/object/bbox/y1'
 ORIENTED_BBOX_X2_KEY = 'image/object/bbox/x2'

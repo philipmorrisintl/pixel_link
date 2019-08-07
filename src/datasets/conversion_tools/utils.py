@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Optional
 from functools import reduce
 
 import argparse
@@ -7,8 +7,10 @@ import numpy as np
 
 from src.datasets.conversion_tools.errors import DataConversionError
 
+
 Number = Union[int, float]
 Point = Tuple[Number, Number]
+ImageSize = Tuple[int, int]
 
 
 INVALID_ORIENTED_BOX_MSG = 'Oriented box should be list of number in format: ' \
@@ -16,6 +18,8 @@ INVALID_ORIENTED_BOX_MSG = 'Oriented box should be list of number in format: ' \
                            'right_top_y, ..., left_bottom_x, left_bottom_y]'
 INVALID_IMAGE_SIZE_MSG = 'Imag size is invalid, both factors must be ' \
                          'greater than 0.'
+INVALID_BOX_COORDS_MSG = 'Bounding box coordinates do not lay at the image ' \
+                         'interior or on its boundaries.'
 
 
 def parse_args():
@@ -48,8 +52,6 @@ def parse_args():
 
 class ImageSizeFormat(Enum):
 
-    ImageSize = Tuple[int, int]
-
     HEIGHT_WIDTH = 1
     WIDTH_HEIGHT = 2
 
@@ -77,37 +79,64 @@ class ImageSizeFormat(Enum):
 class OrientedBoundingBox:
 
     @staticmethod
-    def assembly(points: List[Number],
-                 image_size: ImageSizeFormat.ImageSize = None,
+    def assembly(coords: List[Number],
+                 image_size: Optional[Tuple[int, int]] = None,
                  size_format: ImageSizeFormat = ImageSizeFormat.HEIGHT_WIDTH) -> 'OrientedBoundingBox':
-        if len(points) is not 8:
-            raise DataConversionError(INVALID_ORIENTED_BOX_MSG)
+        OrientedBoundingBox.__check_input(
+            coords=coords,
+            image_size=image_size
+        )
         if image_size is not None:
-            points = OrientedBoundingBox.__standardize_box(
-                points=points,
+            coords = OrientedBoundingBox.__standardize_box(
+                coords=coords,
                 image_size=image_size,
                 size_format=size_format
             )
         return OrientedBoundingBox(
-            left_top=(points[0], points[1]),
-            right_top=(points[2], points[3]),
-            right_bottom=(points[4], points[5]),
-            left_bottom=(points[6], points[7])
+            left_top=(coords[0], coords[1]),
+            right_top=(coords[2], coords[3]),
+            right_bottom=(coords[4], coords[5]),
+            left_bottom=(coords[6], coords[7])
         )
 
     @staticmethod
-    def __standardize_box(points: List[Number],
-                          image_size: ImageSizeFormat.ImageSize,
-                          size_format: ImageSizeFormat) -> List[Number]:
-        if not ImageSizeFormat.size_is_valid(image_size):
+    def __check_input(coords: List[Number],
+                      image_size: Optional[Tuple[int, int]]) -> None:
+        if len(coords) is not 8 or \
+                OrientedBoundingBox.__coords_not_aligned_clockwise(coords):
+            raise DataConversionError(INVALID_ORIENTED_BOX_MSG)
+        if image_size is None:
+            return None
+        print(image_size)
+        if ImageSizeFormat.size_is_valid(image_size) is False:
             raise DataConversionError(INVALID_IMAGE_SIZE_MSG)
+
+    @staticmethod
+    def __coords_not_aligned_clockwise(coords: List[Number]) -> bool:
+        left_top = coords[0], coords[1]
+        right_top = coords[2], coords[3]
+        right_bottom = coords[4], coords[5]
+        left_bottom = coords[6], coords[7]
+        return left_top[0] >= right_top[0] or \
+               left_bottom[0] >= right_bottom[0] or \
+               left_top[1] >= left_bottom[1] or \
+               right_top[1] >= right_bottom[1]
+
+    @staticmethod
+    def __standardize_box(coords: List[Number],
+                          image_size: ImageSize,
+                          size_format: ImageSizeFormat) -> List[Number]:
         image_size = ImageSizeFormat.convert_to_width_height(
             image_size=image_size,
             source_format=size_format
         )
         width, height = image_size
-        points = zip(points, [width, height] * 4)
-        return list(map(lambda x: x[0] / x[1], points))
+        coords = zip(coords, [width, height] * 4)
+        coords = list(map(lambda x: x[0] / x[1], coords))
+        coords_error_exists = any([c < 0.0 or c > 1.0 for c in coords])
+        if coords_error_exists:
+            raise DataConversionError(INVALID_BOX_COORDS_MSG)
+        return coords
 
     def __init__(self,
                  left_top: Point,

@@ -9,9 +9,8 @@ import cv2 as cv
 from src.datasets.config import IMG_HEIGHT_KEY, IMG_WIDTH_KEY, \
     ORIENTED_BBOX_X1_KEY, ORIENTED_BBOX_Y1_KEY, ORIENTED_BBOX_X2_KEY, \
     ORIENTED_BBOX_Y2_KEY, ORIENTED_BBOX_X3_KEY, ORIENTED_BBOX_Y3_KEY, \
-    ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY, RAW_FILE_KEY, EXAMPLE_ID_KEY, \
-    BBOXES_NUMBER_KEY
-from src.datasets.conversion_tools.utils import ImageSizeFormat
+    ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY, RAW_FILE_KEY, EXAMPLE_ID_KEY
+from src.datasets.conversion_tools.utils import ImageSizeFormat, ImageSize
 from src.datasets.wrappers import int64_feature, float_feature, bytes_feature
 from src.logger.logger import get_logger
 
@@ -35,7 +34,7 @@ def convert_to_example(example_id: int,
                        file_name: str,
                        oriented_bboxes: List[np.ndarray],
                        max_bounding_boxes: int,
-                       target_size: ImageSizeFormat.ImageSize,
+                       target_size: ImageSize,
                        size_format: ImageSizeFormat = ImageSizeFormat.HEIGHT_WIDTH) -> Example:
     oriented_bboxes = _check_example_health(file_name, oriented_bboxes)
     oriented_bboxes = _prepare_bboxes_array(
@@ -58,7 +57,7 @@ def convert_to_example(example_id: int,
 
 
 def _adjust_image(image: np.ndarray,
-                  target_size: ImageSizeFormat.ImageSize,
+                  target_size: ImageSize,
                   size_format: ImageSizeFormat) -> np.ndarray:
     target_size = ImageSizeFormat.convert_to_width_height(
         image_size=target_size,
@@ -120,8 +119,7 @@ def _construct_feature_dict(example_id: int,
         EXAMPLE_ID_KEY: int64_feature([example_id]),
         IMG_HEIGHT_KEY: int64_feature([image_height]),
         IMG_WIDTH_KEY: int64_feature([image_width]),
-        RAW_FILE_KEY: bytes_feature(image.tostring()),
-        BBOXES_NUMBER_KEY: int64_feature([len(oriented_bboxes)])
+        RAW_FILE_KEY: bytes_feature(image.tostring())
     }
     feature = _put_oriented_bboxes_into_feature(
         feature=feature,
@@ -183,7 +181,7 @@ def _get_features_to_extract(decode_example_id: bool) -> dict:
         ORIENTED_BBOX_Y3_KEY, ORIENTED_BBOX_X4_KEY, ORIENTED_BBOX_Y4_KEY
     ]
     int_features_names = [
-        IMG_WIDTH_KEY, IMG_HEIGHT_KEY, BBOXES_NUMBER_KEY
+        IMG_WIDTH_KEY, IMG_HEIGHT_KEY
     ]
     if decode_example_id:
         int_features_names.append(EXAMPLE_ID_KEY)

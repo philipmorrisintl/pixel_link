@@ -124,7 +124,7 @@ class PascalVOCParser(DatasetParser):
 
     def __get_oriented_bbox(self,
                             voc_bbox: np.ndarray,
-                            image_size: ImageSizeFormat.ImageSize) -> OrientedBoundingBox:
+                            image_size: ImageSize) -> OrientedBoundingBox:
         oriented_bbox_points = [
             voc_bbox[0], voc_bbox[1],
             voc_bbox[2], voc_bbox[1],
@@ -132,7 +132,7 @@ class PascalVOCParser(DatasetParser):
             voc_bbox[0], voc_bbox[3]
         ]
         return OrientedBoundingBox.assembly(
-            points=oriented_bbox_points,
+            coords=oriented_bbox_points,
             image_size=image_size
         )
 
@@ -140,16 +140,20 @@ class PascalVOCParser(DatasetParser):
 class DatasetConverter:
 
     def __init__(self,
-                 max_bounding_boxes: int,
                  dataset_parser: DatasetParser,
+                 max_bounding_boxes: int,
+                 target_size: ImageSize,
                  output_dir: str,
                  training_list_path: str,
-                 test_list_path: Optional[str] = None):
-        self.__max_bounding_boxes = max_bounding_boxes
+                 test_list_path: Optional[str] = None,
+                 size_format: ImageSizeFormat = ImageSizeFormat.HEIGHT_WIDTH):
         self.__dataset_parser = dataset_parser
+        self.__max_bounding_boxes = max_bounding_boxes
+        self.__target_size = target_size
         self.__output_dir = output_dir
         self.__training_list_path = training_list_path
         self.__test_list_path = test_list_path
+        self.__size_format = size_format
 
     def convert(self) -> None:
         self.__convert_training_set()
@@ -228,7 +232,9 @@ class DatasetConverter:
             image=annotation.image,
             file_name=annotation.file_name,
             oriented_bboxes=annotation.oriented_bboxes,
-            max_bounding_boxes=self.__max_bounding_boxes
+            max_bounding_boxes=self.__max_bounding_boxes,
+            target_size=self.__target_size,
+            size_format=self.__size_format
         )
         tfrecord_writer.write(example.SerializeToString())
 
